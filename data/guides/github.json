@@ -1,0 +1,698 @@
+{
+  "slug": "github",
+  "name": "GitHub",
+  "provider": "GitHub",
+  "website": "https://github.com",
+  "category": "Developer tools",
+  "summary": "GitHub has no provider review for OAuth Apps or GitHub Apps: you register one in a few minutes and any GitHub user can authorize it immediately. The real decisions are which app type to build (GitHub recommends GitHub Apps for fine-grained permissions and expiring tokens) and how your users will get past organization owner approval, since new organizations restrict OAuth app access by default. Marketplace listing is the only part that is reviewed, and it is optional.",
+  "verdict": {
+    "difficulty": "easy",
+    "headline": "No provider review; register in minutes. Expect friction only from organization owners who must approve your app for org data",
+    "confidence": "documented",
+    "sources": [
+      "gh-create",
+      "gh-restrict",
+      "gh-diff"
+    ]
+  },
+  "effort": {
+    "handsOn": "15-45 min to register the app and complete a first token exchange",
+    "approvalWait": "None from GitHub. Organization owner approval for each customer org is outside your control and can take anywhere from minutes to never.",
+    "testBeforeApproval": true,
+    "testingLimits": "No test-user list or user cap. Limits are operational: 10 tokens per user/app/scope combination (oldest revoked beyond that), 10 tokens created per hour, and OAuth app tokens share the user's 5,000 requests per hour.",
+    "glance": {
+      "handsOn": {
+        "value": "15-45 min"
+      },
+      "approvalWait": {
+        "value": "None",
+        "when": "org owners may need to approve"
+      },
+      "testing": {
+        "value": "No user cap"
+      },
+      "waitLevel": "none"
+    },
+    "confidence": "documented",
+    "sources": [
+      "gh-auth",
+      "gh-revoke",
+      "gh-diff"
+    ]
+  },
+  "appTypeChoice": {
+    "recommendation": "Build a GitHub App and use its user authorization (OAuth web flow) for acting on behalf of users. Use an OAuth App only if you need classic scopes across every repo a user can reach without per-org installation.",
+    "rationale": "GitHub states GitHub Apps are generally preferred. They use fine-grained permissions (OAuth Apps only have coarse scopes, and repo grants full read and write to all private repositories plus some org resources), user tokens expire after eight hours by default with six-month refresh tokens, and rate limits scale with installations. The trade-off: a GitHub App must be installed on an account or organization before its user tokens can reach that org's repositories, which an org owner must approve, so onboarding has one more step.",
+    "confidence": "documented",
+    "sources": [
+      "gh-diff",
+      "gh-scopes",
+      "gh-refresh"
+    ]
+  },
+  "prerequisites": [
+    {
+      "item": "A GitHub personal account, or owner rights on the organization that should own the app",
+      "why": "Apps are registered under Developer settings of a user or organization; org ownership keeps the app independent of one employee.",
+      "confidence": "documented",
+      "sources": [
+        "gh-create"
+      ]
+    },
+    {
+      "item": "A public homepage URL and an HTTPS callback URL for each environment",
+      "why": "Homepage URL and Authorization callback URL are fields on the registration form and are shown to users.",
+      "confidence": "documented",
+      "sources": [
+        "gh-create"
+      ]
+    }
+  ],
+  "steps": [
+    {
+      "id": "choose-type",
+      "title": "Choose GitHub App or OAuth App and list permissions",
+      "owner": "agent",
+      "detail": "Map agent features to GitHub App permissions (for example Contents: read, Issues: write, Pull requests: write) or, for an OAuth App, to scopes. Flag that OAuth App scope repo has no read-only variant for private repositories.",
+      "duration": "15-30 min",
+      "links": [
+        {
+          "label": "Differences between GitHub Apps and OAuth apps",
+          "url": "https://docs.github.com/en/apps/oauth-apps/building-oauth-apps/differences-between-github-apps-and-oauth-apps"
+        },
+        {
+          "label": "Scopes for OAuth apps",
+          "url": "https://docs.github.com/en/apps/oauth-apps/building-oauth-apps/scopes-for-oauth-apps"
+        }
+      ],
+      "fields": [],
+      "confidence": "documented",
+      "sources": [
+        "gh-diff",
+        "gh-scopes"
+      ]
+    },
+    {
+      "id": "generate-callbacks",
+      "title": "Generate callback URLs per environment",
+      "owner": "agent",
+      "detail": "Produce one exact callback URL per environment (up to 10 per app). For local CLIs, use a loopback callback such as http://127.0.0.1/callback; GitHub ignores the port for loopback redirects. Avoid relying on wildcard subdirectory matching: apps created after August 3, 2026 match exactly unless you turn wildcard matching on.",
+      "duration": "10 min",
+      "links": [],
+      "fields": [],
+      "confidence": "documented",
+      "sources": [
+        "gh-auth",
+        "gh-create",
+        "gh-callback"
+      ]
+    },
+    {
+      "id": "register",
+      "title": "Register the app in Developer settings",
+      "owner": "developer",
+      "detail": "Settings > Developer settings > OAuth Apps > New OAuth App (or GitHub Apps > New GitHub App). Requires the developer's signed-in account; the probe of the new-app page redirected to the GitHub sign-in page. Only enter information you consider public. A user or org can own up to 100 OAuth apps.",
+      "duration": "5 min",
+      "links": [
+        {
+          "label": "Creating an OAuth app",
+          "url": "https://docs.github.com/en/apps/oauth-apps/building-oauth-apps/creating-an-oauth-app"
+        }
+      ],
+      "fields": [
+        {
+          "name": "Application name",
+          "value": "Your product name"
+        },
+        {
+          "name": "Homepage URL",
+          "value": "https://yourdomain.com"
+        },
+        {
+          "name": "Application description",
+          "value": "One line users will see on the authorization page"
+        },
+        {
+          "name": "Authorization callback URL",
+          "value": "https://app.yourdomain.com/oauth/github/callback (add up to 10)"
+        },
+        {
+          "name": "Enable Device Flow",
+          "value": "Check only if you ship a CLI or headless client"
+        }
+      ],
+      "confidence": "tested",
+      "sources": [
+        "gh-create",
+        "gp-newapp"
+      ]
+    },
+    {
+      "id": "secret",
+      "title": "Generate a client secret and store it",
+      "owner": "developer",
+      "detail": "Generate a client secret on the app page and put it in your secret manager. The web flow token exchange requires client_secret even when you use PKCE; only the device flow omits it.",
+      "duration": "2 min",
+      "links": [],
+      "fields": [
+        {
+          "name": "Client secrets",
+          "value": "Generate a new client secret"
+        }
+      ],
+      "confidence": "documented",
+      "sources": [
+        "gh-auth"
+      ]
+    },
+    {
+      "id": "token-expiry",
+      "title": "Turn on expiring user tokens",
+      "owner": "developer",
+      "detail": "GitHub Apps: expiring user tokens are on by default (8 hours, refresh token 6 months). OAuth Apps: opt in under Optional features, or request the offline_access scope per sign-in to get an expiring token plus refresh token. Existing long-lived tokens are not converted; users must sign in again.",
+      "duration": "2 min",
+      "links": [
+        {
+          "label": "Activating optional features for OAuth apps",
+          "url": "https://docs.github.com/en/apps/oauth-apps/maintaining-oauth-apps/activating-optional-features-for-oauth-apps"
+        }
+      ],
+      "fields": [
+        {
+          "name": "Optional features",
+          "value": "Opt-in to expiring user tokens"
+        }
+      ],
+      "confidence": "documented",
+      "sources": [
+        "gh-auth",
+        "gh-refresh"
+      ]
+    },
+    {
+      "id": "implement-flow",
+      "title": "Implement the web flow with state and PKCE",
+      "owner": "agent",
+      "detail": "Redirect to https://github.com/login/oauth/authorize with client_id, redirect_uri, scope, state, code_challenge and code_challenge_method=S256. Exchange the code (valid 10 minutes) at https://github.com/login/oauth/access_token with client_id, client_secret, code, redirect_uri and code_verifier. Send Accept: application/json to get JSON instead of form-encoded output.",
+      "duration": "30-60 min",
+      "links": [
+        {
+          "label": "Authorizing OAuth apps",
+          "url": "https://docs.github.com/en/apps/oauth-apps/building-oauth-apps/authorizing-oauth-apps"
+        }
+      ],
+      "fields": [],
+      "confidence": "documented",
+      "sources": [
+        "gh-auth",
+        "gh-pkce"
+      ]
+    },
+    {
+      "id": "test",
+      "title": "Authorize with your own account",
+      "owner": "developer",
+      "detail": "Sign in and authorize the app. No test-user list or review is involved; the app works for any GitHub user right away.",
+      "duration": "5 min",
+      "links": [],
+      "fields": [],
+      "confidence": "documented",
+      "sources": [
+        "gh-create",
+        "gh-diff"
+      ]
+    },
+    {
+      "id": "org-approval",
+      "title": "Get organization owners to approve the app",
+      "owner": "shared",
+      "detail": "For each customer org with OAuth app access restrictions (on by default for new orgs), a member requests access during authorization and an owner approves it in org settings. For a GitHub App, an owner installs or approves the installation. An agent can draft the approval request and a permissions explainer; only the customer's owner can approve.",
+      "duration": "Outside your control",
+      "links": [
+        {
+          "label": "About OAuth app access restrictions",
+          "url": "https://docs.github.com/en/organizations/managing-oauth-access-to-your-organizations-data/about-oauth-app-access-restrictions"
+        }
+      ],
+      "fields": [],
+      "confidence": "documented",
+      "sources": [
+        "gh-restrict",
+        "gh-diff"
+      ]
+    }
+  ],
+  "approval": {
+    "required": "none",
+    "trigger": "GitHub does not review OAuth Apps or GitHub Apps before production use. Only an optional GitHub Marketplace listing is reviewed. Separately, each organization's owners can require approval before your app can access that org's data.",
+    "process": "None from GitHub. Per-organization: a member requests approval while authorizing, and an owner approves the OAuth App in org settings (or installs the GitHub App).",
+    "typicalDuration": "None from GitHub; org owner approval depends entirely on each customer",
+    "confidence": "documented",
+    "sources": [
+      "gh-create",
+      "gh-restrict",
+      "gh-diff"
+    ]
+  },
+  "scopes": [
+    {
+      "scope": "(no scope)",
+      "tier": "basic",
+      "note": "Read-only access to public information.",
+      "confidence": "documented",
+      "sources": [
+        "gh-scopes"
+      ]
+    },
+    {
+      "scope": "read:user",
+      "tier": "basic",
+      "note": "Read profile data.",
+      "confidence": "inferred",
+      "sources": []
+    },
+    {
+      "scope": "user:email",
+      "tier": "basic",
+      "note": "Read email addresses, including private ones.",
+      "confidence": "inferred",
+      "sources": []
+    },
+    {
+      "scope": "repo",
+      "tier": "basic",
+      "note": "Full read and write to all public and private repositories plus some org resources. No read-only private variant, which is the main reason to prefer a GitHub App.",
+      "confidence": "documented",
+      "sources": [
+        "gh-scopes"
+      ]
+    },
+    {
+      "scope": "workflow",
+      "tier": "basic",
+      "note": "Add and update GitHub Actions workflow files; needed if the agent pushes changes under .github/workflows.",
+      "confidence": "documented",
+      "sources": [
+        "gh-scopes"
+      ]
+    },
+    {
+      "scope": "offline_access",
+      "tier": "basic",
+      "note": "Not a permission: requests an expiring token and refresh token for this sign-in even if the app has not opted in.",
+      "confidence": "documented",
+      "sources": [
+        "gh-auth"
+      ]
+    }
+  ],
+  "gotchas": [
+    {
+      "title": "Org access restrictions hide org data from your OAuth App",
+      "detail": "New organizations enable OAuth app access restrictions by default. Until an owner approves your app, user tokens cannot reach the org's private resources, so the agent sees only personal and public repos.",
+      "severity": "blocker",
+      "confidence": "documented",
+      "sources": [
+        "gh-restrict"
+      ]
+    },
+    {
+      "title": "Ten tokens per user, app and scope",
+      "detail": "GitHub issues at most 10 tokens per user/application/scope combination and revokes the oldest beyond that, with a creation limit of 10 per hour. Running a fresh authorization per agent session will silently revoke earlier sessions.",
+      "severity": "warning",
+      "confidence": "documented",
+      "sources": [
+        "gh-auth",
+        "gh-revoke"
+      ]
+    },
+    {
+      "title": "Non-expiring OAuth tokens unless you opt in",
+      "detail": "OAuth App tokens are long-lived by default and are revoked only after a year unused, on user revocation, or if pushed to a public repo. Opting in later does not convert existing tokens.",
+      "severity": "warning",
+      "confidence": "documented",
+      "sources": [
+        "gh-auth",
+        "gh-revoke"
+      ]
+    },
+    {
+      "title": "Refresh tokens rotate on use",
+      "detail": "Using a refresh token returns a new access token and new refresh token and invalidates the old pair. Store the new refresh token atomically or concurrent workers will lock each other out with bad_refresh_token.",
+      "severity": "warning",
+      "confidence": "documented",
+      "sources": [
+        "gh-refresh",
+        "gh-auth"
+      ]
+    },
+    {
+      "title": "Wildcard callback matching is per URL now",
+      "detail": "Apps created after August 3, 2026 require an exact redirect match unless you enable wildcard matching on that callback URL. Older apps with a single callback keep wildcard matching on; GitHub recommends turning it off if unused.",
+      "severity": "info",
+      "confidence": "documented",
+      "sources": [
+        "gh-auth"
+      ]
+    },
+    {
+      "title": "Device flow must be enabled and is rate limited",
+      "detail": "Device flow returns device_flow_disabled until you check Enable Device Flow. Codes last 15 minutes, users get 50 code submissions per hour per app, and polling faster than interval adds 5 seconds via slow_down.",
+      "severity": "info",
+      "confidence": "documented",
+      "sources": [
+        "gh-auth"
+      ]
+    },
+    {
+      "title": "No OIDC discovery document",
+      "detail": "github.com does not publish /.well-known/openid-configuration or oauth-authorization-server metadata (both returned 404), so generic OIDC clients must be configured with endpoints by hand.",
+      "severity": "info",
+      "confidence": "tested",
+      "sources": [
+        "gp-discovery"
+      ]
+    }
+  ],
+  "blockers": [
+    {
+      "symptom": "error=redirect_uri_mismatch: \"The redirect_uri MUST match the registered callback URL for this application.\"",
+      "cause": "The redirect_uri does not match a registered callback URL (exact match unless wildcard matching is on for that URL; host and port must always match).",
+      "resolution": "Register the exact URL (up to 10 per app) or omit redirect_uri to use the first registered callback.",
+      "confidence": "documented",
+      "sources": [
+        "gh-trouble",
+        "gh-auth"
+      ]
+    },
+    {
+      "symptom": "Agent cannot see an organization's private repositories even though the user authorized the app",
+      "cause": "The organization has OAuth app access restrictions enabled and has not approved your OAuth App, or your GitHub App is not installed on that org.",
+      "resolution": "Have the user click Request on the authorization page for that org, and have an owner approve it in organization settings (or install the GitHub App).",
+      "confidence": "documented",
+      "sources": [
+        "gh-restrict"
+      ]
+    },
+    {
+      "symptom": "error=application_suspended: \"Your application has been suspended. Contact support@github.com.\"",
+      "cause": "GitHub suspended the app.",
+      "resolution": "Contact GitHub Support through the support portal.",
+      "confidence": "documented",
+      "sources": [
+        "gh-trouble"
+      ]
+    },
+    {
+      "symptom": "device_flow_disabled",
+      "cause": "Device flow is not enabled in the app settings.",
+      "resolution": "Check Enable Device Flow on the app's settings page.",
+      "confidence": "documented",
+      "sources": [
+        "gh-auth"
+      ]
+    },
+    {
+      "symptom": "bad_refresh_token",
+      "cause": "The refresh token was already used (they rotate), expired after six months, or was revoked.",
+      "resolution": "Persist the newest refresh token after every refresh and serialize refreshes per user; otherwise send the user through authorization again.",
+      "confidence": "documented",
+      "sources": [
+        "gh-auth",
+        "gh-refresh"
+      ]
+    },
+    {
+      "symptom": "{\"error\":\"Not Found\"} from /login/oauth/access_token or /login/device/code",
+      "cause": "GitHub answered both endpoints with this body for a nonexistent client ID, so it most likely indicates a wrong client_id.",
+      "resolution": "Check the client ID on the app settings page and confirm you are calling github.com, not a GitHub Enterprise host.",
+      "confidence": "tested",
+      "sources": [
+        "gp-token"
+      ]
+    },
+    {
+      "symptom": "Earlier sessions stop working after a user reconnects several times",
+      "cause": "The 10-tokens-per-user/app/scope limit revoked the oldest tokens.",
+      "resolution": "Reuse one stored token (or refresh token) per user and scope set instead of re-authorizing per session.",
+      "confidence": "documented",
+      "sources": [
+        "gh-auth",
+        "gh-revoke"
+      ]
+    }
+  ],
+  "technical": {
+    "authorizationUrl": "https://github.com/login/oauth/authorize",
+    "tokenUrl": "https://github.com/login/oauth/access_token",
+    "pkce": "supported, S256 only, not required (since July 2025); client_secret is still required for the web flow token exchange",
+    "refreshTokens": "GitHub Apps: on by default, refresh token valid 6 months and rotated on use. OAuth Apps: only when the app opts in to expiring tokens or the request includes offline_access.",
+    "accessTokenLifetime": "8 hours when expiring tokens are on (expires_in=28800). Otherwise non-expiring, revoked after one year unused.",
+    "redirectUriRules": "Up to 10 callback URLs per app. Exact match unless wildcard matching is enabled for that callback (then same host excluding subdomains and port, path under the callback path). Loopback redirects may use any port. Apps with one callback created before August 3, 2026 have wildcard matching on.",
+    "confidence": "documented",
+    "sources": [
+      "gh-auth",
+      "gh-pkce",
+      "gh-refresh",
+      "gh-revoke",
+      "gh-callback"
+    ]
+  },
+  "agentVsYou": {
+    "agentCan": [
+      "Recommend GitHub App vs OAuth App and map features to permissions or scopes",
+      "Generate callback URLs per environment, including loopback URLs for CLIs",
+      "Implement the web flow with state, PKCE S256 and token refresh with rotation",
+      "Implement device flow polling with interval and slow_down handling",
+      "Draft the org-approval request text and a permissions explainer for customer org owners"
+    ],
+    "youMust": [
+      "Sign in and register the app under your user or organization",
+      "Generate and store the client secret (and private key for a GitHub App)",
+      "Choose token-expiration and device-flow settings in the app settings",
+      "Get each customer's organization owner to approve or install the app"
+    ]
+  },
+  "checks": [
+    {
+      "claim": "GitHub publishes OAuth or OIDC discovery metadata for github.com",
+      "method": "probe",
+      "result": "contradicted",
+      "detail": "GET https://github.com/.well-known/oauth-authorization-server returned 404 {\"error\":\"Not Found\"}, and /.well-known/openid-configuration also returned 404. Endpoints must be hardcoded.",
+      "sources": [
+        "gp-discovery"
+      ]
+    },
+    {
+      "claim": "The authorize endpoint rejects an unknown client_id immediately",
+      "method": "probe",
+      "result": "contradicted",
+      "detail": "An unauthenticated GET to /login/oauth/authorize with a nonexistent client_id (with and without code_challenge) returned 302 to /login?client_id=...&return_to=... GitHub requires sign-in before validating the client, so a bad client ID only surfaces after the user logs in.",
+      "sources": [
+        "gp-authorize"
+      ]
+    },
+    {
+      "claim": "Token and device-code endpoints return a standard OAuth error for unknown clients",
+      "method": "probe",
+      "result": "contradicted",
+      "detail": "POST /login/oauth/access_token and POST /login/device/code with a fake client_id both returned {\"error\":\"Not Found\"} rather than invalid_client.",
+      "sources": [
+        "gp-token"
+      ]
+    },
+    {
+      "claim": "App registration requires a signed-in GitHub account",
+      "method": "probe",
+      "result": "confirmed",
+      "detail": "GET https://github.com/settings/applications/new and https://github.com/login/device both redirected to the GitHub sign-in page.",
+      "sources": [
+        "gp-newapp"
+      ]
+    },
+    {
+      "claim": "GitHub does not support PKCE",
+      "method": "source_review",
+      "result": "corrected",
+      "detail": "Long-standing community belief (see discussion #15752). Since the July 14, 2025 changelog, PKCE is supported and recommended for OAuth Apps and GitHub Apps, S256 only, not enforced. client_secret is still required at token exchange for the web flow.",
+      "sources": [
+        "gh-pkce",
+        "gh-auth"
+      ]
+    },
+    {
+      "claim": "OAuth App tokens never expire and OAuth Apps have no refresh tokens",
+      "method": "source_review",
+      "result": "corrected",
+      "detail": "Previously true. OAuth Apps can now opt in to expiring tokens (8 hours, refresh token 6 months) or request offline_access per sign-in. Default tokens are still long-lived, revoked after one year unused.",
+      "sources": [
+        "gh-auth",
+        "gh-revoke"
+      ]
+    },
+    {
+      "claim": "An OAuth App can have only one callback URL, with subdirectory matching",
+      "method": "source_review",
+      "result": "corrected",
+      "detail": "Older docs and many tutorials say one callback URL with host-and-subpath matching. Current docs allow up to 10 callback URLs per OAuth App, with exact matching by default and wildcard matching as a per-URL setting; apps with a single callback created before August 3, 2026 keep wildcard matching.",
+      "sources": [
+        "gh-create",
+        "gh-auth"
+      ]
+    },
+    {
+      "claim": "New organizations restrict OAuth app access by default",
+      "method": "source_review",
+      "result": "confirmed",
+      "detail": "Docs: \"When you create a new organization, OAuth app access restrictions are enabled by default.\"",
+      "sources": [
+        "gh-restrict"
+      ]
+    },
+    {
+      "claim": "GitHub App user tokens expire after 8 hours with 6-month refresh tokens",
+      "method": "source_review",
+      "result": "confirmed",
+      "detail": "Stated in refreshing user access tokens docs; expiration is on by default for new GitHub Apps and can be opted out, which GitHub advises against.",
+      "sources": [
+        "gh-refresh"
+      ]
+    },
+    {
+      "claim": "Whether OAuth app access restrictions also gate GitHub App user tokens",
+      "method": "source_review",
+      "result": "unverified",
+      "detail": "The restrictions page does not state this. The differences page says an org owner must approve a GitHub App, which in practice is the installation. Not tested with a real org.",
+      "sources": [
+        "gh-restrict",
+        "gh-diff"
+      ]
+    }
+  ],
+  "uncertainties": [
+    "Whether OAuth app access restrictions apply to GitHub App user tokens independently of installation is not stated in the docs reviewed and was not tested.",
+    "The {\"error\":\"Not Found\"} response for unknown client IDs was observed by probe but is undocumented; GitHub may change it.",
+    "Scope notes for read:user and user:email are from general knowledge, not quoted from the scopes page in this research.",
+    "No app was registered, so the token exchange, PKCE enforcement and expiring-token behavior were not observed live.",
+    "GitHub Enterprise Server may lag github.com on PKCE, offline_access and callback URL features; not checked."
+  ],
+  "sources": [
+    {
+      "id": "gh-auth",
+      "title": "Authorizing OAuth apps",
+      "url": "https://docs.github.com/en/apps/oauth-apps/building-oauth-apps/authorizing-oauth-apps",
+      "kind": "official_docs",
+      "accessed": "2026-10-30",
+      "quote": "The access token expires after eight hours, and the refresh token expires after six months without use."
+    },
+    {
+      "id": "gh-create",
+      "title": "Creating an OAuth app",
+      "url": "https://docs.github.com/en/apps/oauth-apps/building-oauth-apps/creating-an-oauth-app",
+      "kind": "official_docs",
+      "accessed": "2026-10-30",
+      "quote": "You can enter up to 10 callback URLs."
+    },
+    {
+      "id": "gh-diff",
+      "title": "Differences between GitHub Apps and OAuth apps",
+      "url": "https://docs.github.com/en/apps/oauth-apps/building-oauth-apps/differences-between-github-apps-and-oauth-apps",
+      "kind": "official_docs",
+      "accessed": "2026-10-30",
+      "quote": "In general, GitHub Apps are preferred over OAuth apps."
+    },
+    {
+      "id": "gh-scopes",
+      "title": "Scopes for OAuth apps",
+      "url": "https://docs.github.com/en/apps/oauth-apps/building-oauth-apps/scopes-for-oauth-apps",
+      "kind": "official_docs",
+      "accessed": "2026-10-30",
+      "quote": "Grants full access to public and private repositories including read and write access to code"
+    },
+    {
+      "id": "gh-restrict",
+      "title": "About OAuth app access restrictions",
+      "url": "https://docs.github.com/en/organizations/managing-oauth-access-to-your-organizations-data/about-oauth-app-access-restrictions",
+      "kind": "official_docs",
+      "accessed": "2026-10-30",
+      "quote": "When you create a new organization, OAuth app access restrictions are enabled by default."
+    },
+    {
+      "id": "gh-trouble",
+      "title": "Troubleshooting authorization request errors",
+      "url": "https://docs.github.com/en/apps/oauth-apps/maintaining-oauth-apps/troubleshooting-authorization-request-errors",
+      "kind": "official_docs",
+      "accessed": "2026-10-30",
+      "quote": "The redirect_uri MUST match the registered callback URL for this application."
+    },
+    {
+      "id": "gh-refresh",
+      "title": "Refreshing user access tokens (GitHub Apps)",
+      "url": "https://docs.github.com/en/apps/creating-github-apps/authenticating-with-a-github-app/refreshing-user-access-tokens",
+      "kind": "official_docs",
+      "accessed": "2026-10-30",
+      "quote": "The user access token expires after eight hours."
+    },
+    {
+      "id": "gh-revoke",
+      "title": "Token expiration and revocation",
+      "url": "https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/token-expiration-and-revocation",
+      "kind": "official_docs",
+      "accessed": "2026-10-30",
+      "quote": "GitHub will automatically revoke an OAuth token or personal access token when the token hasn't been used in one year."
+    },
+    {
+      "id": "gh-pkce",
+      "title": "PKCE support for OAuth and GitHub App authentication (GitHub changelog, 2025-07-14)",
+      "url": "https://github.blog/changelog/2025-07-14-pkce-support-for-oauth-and-github-app-authentication/",
+      "kind": "official_docs",
+      "accessed": "2026-10-30",
+      "quote": "GitHub is not requiring PKCE for any authentication flow at this time."
+    },
+    {
+      "id": "gh-callback",
+      "title": "About the user authorization callback URL (GitHub Apps)",
+      "url": "https://docs.github.com/en/apps/creating-github-apps/registering-a-github-app/about-the-user-authorization-callback-url",
+      "kind": "official_docs",
+      "accessed": "2026-10-30",
+      "quote": "You can specify up to 10 callback URLs."
+    },
+    {
+      "id": "gp-discovery",
+      "title": "Probe: GitHub discovery metadata",
+      "url": "https://github.com/.well-known/oauth-authorization-server",
+      "kind": "probe",
+      "accessed": "2026-10-30",
+      "quote": "404 {\"error\":\"Not Found\"}; /.well-known/openid-configuration also 404"
+    },
+    {
+      "id": "gp-authorize",
+      "title": "Probe: GitHub authorize with unknown client",
+      "url": "https://github.com/login/oauth/authorize",
+      "kind": "probe",
+      "accessed": "2026-10-30",
+      "quote": "302 to https://github.com/login?client_id=oauth-guide-probe-nonexistent-client&return_to=..."
+    },
+    {
+      "id": "gp-token",
+      "title": "Probe: GitHub token and device-code endpoints with unknown client",
+      "url": "https://github.com/login/oauth/access_token",
+      "kind": "probe",
+      "accessed": "2026-10-30",
+      "quote": "POST returned {\"error\":\"Not Found\"} (same for /login/device/code)"
+    },
+    {
+      "id": "gp-newapp",
+      "title": "Probe: GitHub new OAuth app page",
+      "url": "https://github.com/settings/applications/new",
+      "kind": "probe",
+      "accessed": "2026-10-30",
+      "quote": "Redirected to https://github.com/login?return_to=...settings/applications/new (Sign in to GitHub)"
+    }
+  ],
+  "meta": {
+    "origin": "curated",
+    "generatedAt": "2026-10-30T08:00:00Z",
+    "model": "claude-opus-5-5"
+  }
+}

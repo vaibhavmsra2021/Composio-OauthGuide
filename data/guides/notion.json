@@ -1,0 +1,643 @@
+{
+  "slug": "notion",
+  "name": "Notion",
+  "provider": "Notion Labs",
+  "website": "https://www.notion.com",
+  "category": "Productivity",
+  "summary": "Create a public connection in Notion's Developer portal (launched May 12, 2026, replacing the old My integrations page), add a redirect URI and capabilities, and you get OAuth credentials with no mandatory review. There are no OAuth scopes: access is the capabilities you set plus whatever pages each user picks in the page picker during authorization. Review only applies if you want a Marketplace listing (5-10 business days).",
+  "verdict": {
+    "difficulty": "easy",
+    "headline": "Working OAuth in about an hour with no review; Marketplace listing is optional and takes 5-10 business days",
+    "confidence": "documented",
+    "sources": [
+      "n1",
+      "n4",
+      "n5"
+    ]
+  },
+  "effort": {
+    "handsOn": "30-60 min to create the connection and wire OAuth; another 1-2 h if you prepare a Marketplace listing",
+    "approvalWait": "None for using a public connection. Optional Marketplace listing: 5-10 business days",
+    "testBeforeApproval": true,
+    "testingLimits": "No documented user cap for unlisted public connections. A connection created with installation scope 'Selected workspaces only' can only be installed in those workspaces, and that choice cannot be changed later.",
+    "glance": {
+      "handsOn": {
+        "value": "30-60 min"
+      },
+      "approvalWait": {
+        "value": "None",
+        "when": "Marketplace listing is optional"
+      },
+      "testing": {
+        "value": "No user cap"
+      },
+      "waitLevel": "none"
+    },
+    "confidence": "documented",
+    "sources": [
+      "n1",
+      "n4"
+    ]
+  },
+  "appTypeChoice": {
+    "recommendation": "Create a public connection with installation scope 'Any workspace'.",
+    "rationale": "Internal connections and personal access tokens are tied to one workspace or one user and have no OAuth flow, so they cannot onboard your users. Installation scope is fixed at creation, and only 'Any workspace' connections can be listed on the Marketplace.",
+    "confidence": "documented",
+    "sources": [
+      "n1",
+      "n4",
+      "n5"
+    ]
+  },
+  "prerequisites": [
+    {
+      "item": "A Notion workspace where you are a Workspace Owner",
+      "why": "Notion's docs say a workspace owner is required to create a connection; a third-party guide says plain members cannot.",
+      "confidence": "documented",
+      "sources": [
+        "n1",
+        "n8"
+      ]
+    },
+    {
+      "item": "A redirect URI you control",
+      "why": "Required when creating a public connection; the same value must be sent in the token exchange.",
+      "confidence": "documented",
+      "sources": [
+        "n1",
+        "n2"
+      ]
+    },
+    {
+      "item": "Logo, description, and (likely) company, website, privacy policy, terms and support details",
+      "why": "The older public-integration form asked for company name, website, privacy policy URL, terms of use URL and support email. Current docs list only name, logo and description for the connection, so treat the legal URLs as probably needed but unconfirmed.",
+      "confidence": "reported",
+      "sources": [
+        "n9",
+        "n8"
+      ]
+    }
+  ],
+  "steps": [
+    {
+      "id": "plan",
+      "title": "Pick capabilities and draft connection details",
+      "owner": "agent",
+      "detail": "Choose the minimum capabilities (Read content, Update content, Insert content, Read comments, Insert comments, and a user-information level). Changing capabilities later forces existing users to re-authorize, per a third-party guide. Draft the description, privacy policy and terms text.",
+      "duration": "15 min",
+      "links": [
+        {
+          "label": "Capabilities",
+          "url": "https://developers.notion.com/reference/capabilities"
+        }
+      ],
+      "fields": [
+        {
+          "name": "Content capabilities",
+          "value": "Read content (add Update/Insert only if the agent writes)"
+        },
+        {
+          "name": "User capabilities",
+          "value": "User information without email addresses"
+        }
+      ],
+      "confidence": "documented",
+      "sources": [
+        "n6",
+        "n8"
+      ]
+    },
+    {
+      "id": "create",
+      "title": "Create a public connection in the Developer portal",
+      "owner": "developer",
+      "detail": "Open the Developer portal (notion.so/my-integrations now redirects there), create a new public connection, set name, logo, the development workspace, installation scope and redirect URI(s).",
+      "duration": "10 min",
+      "links": [
+        {
+          "label": "Developer portal",
+          "url": "https://app.notion.com/developers/connections"
+        }
+      ],
+      "fields": [
+        {
+          "name": "Installation scope",
+          "value": "Any workspace (cannot be changed later)"
+        },
+        {
+          "name": "Redirect URIs",
+          "value": "https://yourapp.example.com/oauth/notion/callback"
+        },
+        {
+          "name": "Notion template URL (optional)",
+          "value": "Public page users can duplicate during authorization"
+        }
+      ],
+      "confidence": "documented",
+      "sources": [
+        "n1",
+        "np2"
+      ]
+    },
+    {
+      "id": "credentials",
+      "title": "Copy client ID, client secret and the authorization URL",
+      "owner": "developer",
+      "detail": "Found on the Configuration tab. Store the secret in a secret manager. The docs say the Authorization URL field populates after the connection is submitted for review, which may mean a submit step exists even without a Marketplace listing (unconfirmed).",
+      "duration": "5 min",
+      "links": [
+        {
+          "label": "Authorization guide",
+          "url": "https://developers.notion.com/guides/get-started/authorization"
+        }
+      ],
+      "fields": [],
+      "confidence": "documented",
+      "sources": [
+        "n1"
+      ]
+    },
+    {
+      "id": "build",
+      "title": "Implement the OAuth flow",
+      "owner": "agent",
+      "detail": "Send users to https://api.notion.com/v1/oauth/authorize with client_id, redirect_uri, response_type=code, owner=user and state. Exchange the code at POST https://api.notion.com/v1/oauth/token with HTTP Basic auth (client_id:client_secret) and redirect_uri in the JSON body. Store access_token, refresh_token, bot_id and workspace_id per authorization.",
+      "duration": "1-2 h",
+      "links": [
+        {
+          "label": "Create a token",
+          "url": "https://developers.notion.com/reference/create-a-token"
+        }
+      ],
+      "fields": [],
+      "confidence": "tested",
+      "sources": [
+        "n1",
+        "n2",
+        "np1",
+        "np4"
+      ]
+    },
+    {
+      "id": "refresh",
+      "title": "Implement refresh-token rotation",
+      "owner": "agent",
+      "detail": "Refreshing returns a new access token and a new refresh token; save both every time. Since June 8, 2026, new public connections also get a fresh token pair on every re-authorization, so overwrite stored tokens on each successful callback.",
+      "duration": "30 min",
+      "links": [],
+      "fields": [],
+      "confidence": "documented",
+      "sources": [
+        "n1",
+        "n3"
+      ]
+    },
+    {
+      "id": "test",
+      "title": "Authorize from a test workspace and confirm page access",
+      "owner": "developer",
+      "detail": "Run the flow, pick a few pages in the page picker, and confirm the API sees only those. Empty search results or 404 object_not_found usually mean the page was not shared.",
+      "duration": "15 min",
+      "links": [],
+      "fields": [],
+      "confidence": "documented",
+      "sources": [
+        "n1",
+        "n8"
+      ]
+    },
+    {
+      "id": "listing",
+      "title": "(Optional) Submit a Marketplace listing",
+      "owner": "developer",
+      "detail": "Create a listing in the Listings section (name, description, category and tags, images, linked public connection) and submit. Only 'Any workspace' connections are eligible.",
+      "duration": "1-2 h",
+      "links": [
+        {
+          "label": "Publishing to the Marketplace",
+          "url": "https://developers.notion.com/guides/get-started/publishing-integrations-to-notions-integration-gallery"
+        }
+      ],
+      "fields": [],
+      "confidence": "documented",
+      "sources": [
+        "n4"
+      ]
+    },
+    {
+      "id": "review",
+      "title": "(Optional) Notion listing and security review",
+      "owner": "provider",
+      "detail": "Notion reviews every listing submission and replies by email; rejected listings get a reason and can be resubmitted.",
+      "duration": "5-10 business days",
+      "links": [],
+      "fields": [],
+      "confidence": "documented",
+      "sources": [
+        "n4",
+        "n5"
+      ]
+    }
+  ],
+  "approval": {
+    "required": "conditional",
+    "trigger": "Only a Marketplace listing is reviewed. Public connections work independently of listings.",
+    "process": "Submit a listing in the Developer portal; Notion runs a security and quality review and replies by email with approval or a rejection reason.",
+    "typicalDuration": "5-10 business days (Notion's stated estimate)",
+    "confidence": "documented",
+    "sources": [
+      "n4",
+      "n5"
+    ]
+  },
+  "scopes": [
+    {
+      "scope": "Read content (capability)",
+      "tier": "basic",
+      "note": "Notion has no OAuth scope parameter. Capabilities are set on the connection; actual access is limited to pages the user selects in the page picker.",
+      "confidence": "documented",
+      "sources": [
+        "n6",
+        "n1"
+      ]
+    },
+    {
+      "scope": "Update content / Insert content (capabilities)",
+      "tier": "basic",
+      "note": "Needed for agents that write. Adding them later forces re-authorization (reported).",
+      "confidence": "documented",
+      "sources": [
+        "n6",
+        "n8"
+      ]
+    },
+    {
+      "scope": "User information with email addresses (capability)",
+      "tier": "sensitive",
+      "note": "Exposes workspace member emails; choose 'without email addresses' unless needed.",
+      "confidence": "documented",
+      "sources": [
+        "n6"
+      ]
+    }
+  ],
+  "gotchas": [
+    {
+      "title": "Access is per page, chosen by the user",
+      "detail": "A connection sees nothing by default. Users pick pages and databases in the page picker during OAuth; anything not picked returns 404 object_not_found or is missing from search. Your UI should tell users what to select and let them re-run the picker.",
+      "severity": "warning",
+      "confidence": "documented",
+      "sources": [
+        "n1",
+        "n5",
+        "n8"
+      ]
+    },
+    {
+      "title": "Installation scope is permanent",
+      "detail": "'Any workspace' vs 'Selected workspaces only' is set at creation and cannot be changed. Only 'Any workspace' connections can be listed.",
+      "severity": "warning",
+      "confidence": "documented",
+      "sources": [
+        "n1",
+        "n4"
+      ]
+    },
+    {
+      "title": "Every refresh and every re-authorization issues new tokens",
+      "detail": "Refresh returns a new refresh token, and since June 8, 2026 new public connections mint a fresh pair on each authorization. Code that keeps the first refresh token will break on the second refresh.",
+      "severity": "warning",
+      "confidence": "documented",
+      "sources": [
+        "n1",
+        "n3"
+      ]
+    },
+    {
+      "title": "Enterprise workspaces can block your connection",
+      "detail": "On Enterprise plans, workspace owners can restrict which connections members may install and keep an approved list. Members are told to contact their workspace owner.",
+      "severity": "warning",
+      "confidence": "documented",
+      "sources": [
+        "n7"
+      ]
+    },
+    {
+      "title": "Old URLs and terminology",
+      "detail": "Integrations are now called connections and are managed at app.notion.com/developers/connections. Older tutorials referring to notion.so/my-integrations and a Distribution tab are out of date.",
+      "severity": "info",
+      "confidence": "tested",
+      "sources": [
+        "np2",
+        "np5",
+        "n3"
+      ]
+    }
+  ],
+  "blockers": [
+    {
+      "symptom": "{\"error\":\"invalid_client\"} with HTTP 401 at POST /v1/oauth/token",
+      "cause": "Client credentials missing or not sent as HTTP Basic auth.",
+      "resolution": "Send Authorization: Basic base64(client_id:client_secret); do not put the secret in the JSON body.",
+      "confidence": "tested",
+      "sources": [
+        "np4",
+        "n1"
+      ]
+    },
+    {
+      "symptom": "invalid_grant at token exchange",
+      "cause": "redirect_uri missing from the token request body or different from the one used at authorize.",
+      "resolution": "Always send the same redirect_uri in the body; it is required in most cases and always when more than one URI is configured.",
+      "confidence": "reported",
+      "sources": [
+        "n2",
+        "n8"
+      ]
+    },
+    {
+      "symptom": "404 object_not_found on a page the user can see in Notion",
+      "cause": "The page was not selected in the page picker or was later disconnected.",
+      "resolution": "Send the user back through authorization (or the Add connections menu) to share the page.",
+      "confidence": "reported",
+      "sources": [
+        "n8"
+      ]
+    },
+    {
+      "symptom": "Second token refresh fails",
+      "cause": "The rotated refresh token from the first refresh was not stored.",
+      "resolution": "Persist the new refresh token from every refresh response.",
+      "confidence": "documented",
+      "sources": [
+        "n1"
+      ]
+    },
+    {
+      "symptom": "Member cannot find or add your connection in an Enterprise workspace",
+      "cause": "The workspace owner restricts installs to an approved list.",
+      "resolution": "Ask the customer's workspace owner to add your connection to the approved list.",
+      "confidence": "documented",
+      "sources": [
+        "n7"
+      ]
+    }
+  ],
+  "technical": {
+    "authorizationUrl": "https://api.notion.com/v1/oauth/authorize (302 redirects to https://app.notion.com/install-integration)",
+    "tokenUrl": "https://api.notion.com/v1/oauth/token",
+    "discoveryUrl": "None. /.well-known/oauth-authorization-server on api.notion.com returns 400 invalid_request_url.",
+    "pkce": "Not documented for public connections",
+    "refreshTokens": "Yes. grant_type=refresh_token returns a new access token and a new refresh token. refresh_token may be null in some responses (schema allows null).",
+    "accessTokenLifetime": "Not documented; the token response has no expires_in field. Build refresh-on-401 handling anyway.",
+    "redirectUriRules": "Registered on the connection. redirect_uri is required in the token request in most cases. No documented HTTPS or localhost rule.",
+    "confidence": "documented",
+    "sources": [
+      "n1",
+      "n2",
+      "np1",
+      "np3"
+    ]
+  },
+  "agentVsYou": {
+    "agentCan": [
+      "Choose minimum capabilities and draft the connection description",
+      "Draft privacy policy and terms text",
+      "Write the OAuth authorize, token exchange and refresh code with Basic auth",
+      "Write user-facing instructions for which pages to select in the page picker",
+      "Draft the Marketplace listing copy"
+    ],
+    "youMust": [
+      "Be a Workspace Owner and create the public connection in the Developer portal",
+      "Choose installation scope (permanent)",
+      "Copy and store the client secret",
+      "Submit the Marketplace listing if you want one",
+      "Ask Enterprise customers' workspace owners to approve the connection"
+    ]
+  },
+  "checks": [
+    {
+      "claim": "The authorize endpoint is https://api.notion.com/v1/oauth/authorize",
+      "method": "probe",
+      "result": "confirmed",
+      "detail": "With a fake client_id and owner=user it returned 302 to https://app.notion.com/install-integration?... with all parameters passed through. The client is not validated before the user reaches Notion's UI.",
+      "sources": [
+        "np1"
+      ]
+    },
+    {
+      "claim": "Notion publishes OAuth discovery metadata",
+      "method": "probe",
+      "result": "contradicted",
+      "detail": "GET https://api.notion.com/.well-known/oauth-authorization-server returned 400 {\"code\":\"invalid_request_url\"}. Endpoints must be configured manually.",
+      "sources": [
+        "np3"
+      ]
+    },
+    {
+      "claim": "The token endpoint requires HTTP Basic client authentication",
+      "method": "probe",
+      "result": "confirmed",
+      "detail": "POST https://api.notion.com/v1/oauth/token without Basic auth returned 401 {\"error\":\"invalid_client\"} for both authorization_code and refresh_token grants.",
+      "sources": [
+        "np4",
+        "n1"
+      ]
+    },
+    {
+      "claim": "Integrations are created at notion.so/my-integrations",
+      "method": "probe",
+      "result": "corrected",
+      "detail": "Older docs and tutorials point to My integrations. Now https://www.notion.so/my-integrations returns 301 to /developers/connections, which lands on app.notion.com/developers/connections, the Developer portal announced May 12, 2026. Integrations are now called connections.",
+      "sources": [
+        "np2",
+        "n3"
+      ]
+    },
+    {
+      "claim": "Making an integration public requires a Notion security review",
+      "method": "source_review",
+      "result": "corrected",
+      "detail": "Older docs said public integrations require a security review before publishing. Current docs say public connections work independently of Marketplace listings and only listings are reviewed (5-10 business days). One caption still says the Authorization URL populates after submission for review, so a lightweight submit step may remain.",
+      "sources": [
+        "n4",
+        "n5",
+        "n1"
+      ]
+    },
+    {
+      "claim": "Re-authorizing a user returns the same Notion token",
+      "method": "source_review",
+      "result": "corrected",
+      "detail": "Since June 8, 2026, new public connections mint a fresh access_token and refresh_token on each successful OAuth authorization. Store the pair from every callback.",
+      "sources": [
+        "n3"
+      ]
+    },
+    {
+      "claim": "Public integrations must provide company name, website, privacy policy, terms of use and support email",
+      "method": "source_review",
+      "result": "unverified",
+      "detail": "A third-party guide documents these fields on the old Distribution tab. Current official docs for the Developer portal do not list them. Could not check the portal without signing in.",
+      "sources": [
+        "n9",
+        "n1"
+      ]
+    },
+    {
+      "claim": "Notion OAuth access tokens expire on a fixed schedule",
+      "method": "source_review",
+      "result": "unverified",
+      "detail": "No expiry is documented and the token response has no expires_in. Refresh tokens exist and rotate. The 8-hour lifetime in the July 14, 2026 changelog applies to Notion MCP tokens, not public connection tokens.",
+      "sources": [
+        "n2",
+        "n3"
+      ]
+    },
+    {
+      "claim": "Users choose which pages the connection can access",
+      "method": "source_review",
+      "result": "confirmed",
+      "detail": "Documented in the authorization and getting-started guides: users select pages in the page picker during OAuth.",
+      "sources": [
+        "n1",
+        "n5"
+      ]
+    },
+    {
+      "claim": "Old developer doc URLs still resolve",
+      "method": "probe",
+      "result": "confirmed",
+      "detail": "https://developers.notion.com/docs/authorization redirects to /guides/get-started/authorization (200, title 'Authorization - Notion Docs').",
+      "sources": [
+        "np5"
+      ]
+    }
+  ],
+  "uncertainties": [
+    "Whether the Developer portal still requires company, website, privacy policy, terms and support email before a public connection works.",
+    "Whether a 'submit for review' step is needed to get the Authorization URL even without a Marketplace listing (docs conflict).",
+    "Access token lifetime for public connections; none is documented.",
+    "Whether redirect URIs must be HTTPS or may use localhost.",
+    "Whether Workspace Owner is required to create a public connection (stated for connections generally; one help article says members can add connections).",
+    "Real Marketplace review times beyond Notion's 5-10 business day estimate."
+  ],
+  "sources": [
+    {
+      "id": "n1",
+      "title": "Authorization (Notion developer docs)",
+      "url": "https://developers.notion.com/guides/get-started/authorization",
+      "kind": "official_docs",
+      "accessed": "2026-10-30",
+      "quote": "A user can search for and select pages and databases to share with the connection from the page picker."
+    },
+    {
+      "id": "n2",
+      "title": "Create a token (API reference)",
+      "url": "https://developers.notion.com/reference/create-a-token",
+      "kind": "official_docs",
+      "accessed": "2026-10-30",
+      "quote": "In most cases, the redirect_uri field is required."
+    },
+    {
+      "id": "n3",
+      "title": "Notion developer changelog",
+      "url": "https://developers.notion.com/page/changelog",
+      "kind": "official_docs",
+      "accessed": "2026-10-30",
+      "quote": "New public connections now mint a fresh access_token and refresh_token for each successful OAuth authorization"
+    },
+    {
+      "id": "n4",
+      "title": "Publishing to the Notion Marketplace",
+      "url": "https://developers.notion.com/guides/get-started/publishing-integrations-to-notions-integration-gallery",
+      "kind": "official_docs",
+      "accessed": "2026-10-30",
+      "quote": "Public connections work independently of Marketplace listings."
+    },
+    {
+      "id": "n5",
+      "title": "Getting started (Notion developer docs)",
+      "url": "https://developers.notion.com/guides/get-started/getting-started",
+      "kind": "official_docs",
+      "accessed": "2026-10-30",
+      "quote": "Public connections must undergo a Notion security review before being listed on the Marketplace."
+    },
+    {
+      "id": "n6",
+      "title": "Capabilities (API reference)",
+      "url": "https://developers.notion.com/reference/capabilities",
+      "kind": "official_docs",
+      "accessed": "2026-10-30",
+      "quote": "To set your connection's capabilities see the Authorization guide or navigate to the Developer portal."
+    },
+    {
+      "id": "n7",
+      "title": "Add & manage connections (Notion Help Center)",
+      "url": "https://www.notion.com/help/add-and-manage-connections-with-the-api",
+      "kind": "official_docs",
+      "accessed": "2026-10-30",
+      "quote": "On Enterprise plans, workspace owners can restrict which connections members are allowed to install."
+    },
+    {
+      "id": "n8",
+      "title": "Notion OAuth app setup guide (Unified.to)",
+      "url": "https://docs.unified.to/skills/notion-oauth-app/SKILL.md",
+      "kind": "community",
+      "accessed": "2026-10-30",
+      "quote": "Notion has no OAuth scopes."
+    },
+    {
+      "id": "n9",
+      "title": "Notion connection guide (Make, formerly Integromat)",
+      "url": "https://www.integromat.com/en/help/app/notion",
+      "kind": "community",
+      "accessed": "2026-10-30",
+      "quote": "Lists company name, website, privacy policy URL, terms of use URL and support email on the Distribution tab (paraphrased from search results)."
+    },
+    {
+      "id": "np1",
+      "title": "Probe: Notion authorize endpoint with invalid client_id",
+      "url": "https://api.notion.com/v1/oauth/authorize",
+      "kind": "probe",
+      "accessed": "2026-10-30",
+      "quote": "302 location: https://app.notion.com/install-integration?response_type=code&client_id=oauth-guide-probe-nonexistent-client&...&owner=user"
+    },
+    {
+      "id": "np2",
+      "title": "Probe: old My integrations URL",
+      "url": "https://www.notion.so/my-integrations",
+      "kind": "probe",
+      "accessed": "2026-10-30",
+      "quote": "301 to https://www.notion.so/developers/connections, final https://app.notion.com/developers/connections"
+    },
+    {
+      "id": "np3",
+      "title": "Probe: Notion OAuth discovery",
+      "url": "https://api.notion.com/.well-known/oauth-authorization-server",
+      "kind": "probe",
+      "accessed": "2026-10-30",
+      "quote": "400 {\"object\":\"error\",\"status\":400,\"code\":\"invalid_request_url\",\"message\":\"Invalid request URL.\"}"
+    },
+    {
+      "id": "np4",
+      "title": "Probe: Notion token endpoint without client auth",
+      "url": "https://api.notion.com/v1/oauth/token",
+      "kind": "probe",
+      "accessed": "2026-10-30",
+      "quote": "401 {\"error\":\"invalid_client\"}"
+    },
+    {
+      "id": "np5",
+      "title": "Probe: old authorization docs URL",
+      "url": "https://developers.notion.com/docs/authorization",
+      "kind": "probe",
+      "accessed": "2026-10-30",
+      "quote": "200, final URL https://developers.notion.com/guides/get-started/authorization, title 'Authorization - Notion Docs'"
+    }
+  ],
+  "meta": {
+    "origin": "curated",
+    "generatedAt": "2026-10-30T08:15:00Z"
+  }
+}
